@@ -298,7 +298,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* 头部 */}
         <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">🎯 全栈开发工程师学习路线新</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4">🎯 全栈开发工程师学习路线</h1>
           <p className="text-lg opacity-90">从前端到全栈的系统学习计划 - 包含前端、后端、AI技术及面试准备</p>
         </div>
 

@@ -55,5 +55,5 @@ jobs:
             npm install
             # 构建项目
             npm run build
-            # 重启服务
-            pm2 restart fullstack-todo-list || pm2 start "npm run dev" --name "fullstack-todo-list"
+            # 重启服务（使用生产模式）
+            pm2 restart fullstack-todo-list || pm2 start "npm run start" --name "fullstack-todo-list"
