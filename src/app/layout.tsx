@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: '全栈开发工程师学习路线新',
+  title: '全栈开发工程师学习路线',
   description: '从前端到全栈的系统学习计划 - 包含前端、后端、AI技术及面试准备',
 };
 
