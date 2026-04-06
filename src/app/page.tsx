@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { todoData as initialTodoData } from '@/data/todoData';
 import TodoTable from '@/components/TodoTable';
 
 // 类型定义
@@ -29,67 +28,94 @@ type TodoData = {
   [key: string]: TabData;
 };
 
-// 从localStorage加载数据
-const loadFromStorage = (): TodoData => {
-  if (typeof window === 'undefined') return initialTodoData;
+// 从localStorage加载完成状态
+const loadCompletedFromStorage = (): { [key: string]: boolean } => {
+  if (typeof window === 'undefined') return {};
   
-  const saved = localStorage.getItem('todoData');
+  const saved = localStorage.getItem('todoCompleted');
   if (saved) {
     try {
       return JSON.parse(saved);
     } catch {
-      return initialTodoData;
+      return {};
     }
   }
-  return initialTodoData;
+  return {};
 };
 
-// 保存数据到localStorage
-const saveToStorage = (data: TodoData) => {
+// 保存完成状态到localStorage
+const saveCompletedToStorage = (completed: { [key: string]: boolean }) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('todoData', JSON.stringify(data));
+    localStorage.setItem('todoCompleted', JSON.stringify(completed));
   }
 };
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<string>('frontend');
-  const [todoData, setTodoData] = useState<TodoData>(initialTodoData);
+  const [todoData, setTodoData] = useState<TodoData | null>(null);
+  const [completedTasks, setCompletedTasks] = useState<{ [key: string]: boolean }>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ total: number; completed: number; percent: number }>({
     total: 0,
     completed: 0,
     percent: 0
   });
 
-  // 初始化：从localStorage加载数据
+  // 从API获取todolist数据
+  const fetchTodoData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/todos');
+      const result = await response.json();
+      
+      if (result.success) {
+        setTodoData(result.data);
+        setError(null);
+      } else {
+        setError(result.error || '获取数据失败');
+      }
+    } catch (err) {
+      setError('网络错误，请稍后重试');
+      console.error('获取todolist数据失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始化：从API获取数据，从localStorage加载完成状态
   useEffect(() => {
-    const savedData = loadFromStorage();
-    setTodoData(savedData);
+    fetchTodoData();
+    const savedCompleted = loadCompletedFromStorage();
+    setCompletedTasks(savedCompleted);
   }, []);
 
   // 更新进度
-  const updateProgress = (data: TodoData) => {
+  const updateProgress = (data: TodoData | null, completed: { [key: string]: boolean }) => {
+    if (!data) return;
+    
     let total = 0;
-    let completed = 0;
+    let completedCount = 0;
 
     Object.values(data).forEach((tab) => {
       tab.sections.forEach((section) => {
         section.tasks.forEach((task) => {
           total++;
-          if (task.completed) {
-            completed++;
+          if (completed[task.id]) {
+            completedCount++;
           }
         });
       });
     });
 
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-    setProgress({ total, completed, percent });
+    const percent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+    setProgress({ total, completed: completedCount, percent });
   };
 
-  // 当todoData变化时更新进度
+  // 当数据或完成状态变化时更新进度
   useEffect(() => {
-    updateProgress(todoData);
-  }, [todoData]);
+    updateProgress(todoData, completedTasks);
+  }, [todoData, completedTasks]);
 
   // 切换标签页
   const switchTab = (tabId: string) => {
@@ -98,12 +124,18 @@ export default function Home() {
 
   // 切换任务完成状态
   const toggleTask = (tabId: string, sectionIndex: number, taskIndex: number) => {
-    setTodoData((prevData) => {
-      const newData = JSON.parse(JSON.stringify(prevData)) as TodoData;
-      newData[tabId].sections[sectionIndex].tasks[taskIndex].completed = 
-        !newData[tabId].sections[sectionIndex].tasks[taskIndex].completed;
-      saveToStorage(newData);
-      return newData;
+    if (!todoData) return;
+    
+    const task = todoData[tabId]?.sections[sectionIndex]?.tasks[taskIndex];
+    if (!task) return;
+
+    setCompletedTasks((prev) => {
+      const newCompleted = {
+        ...prev,
+        [task.id]: !prev[task.id]
+      };
+      saveCompletedToStorage(newCompleted);
+      return newCompleted;
     });
   };
 
@@ -221,6 +253,46 @@ export default function Home() {
 
   const currentTab = tabs.find(tab => tab.id === activeTab);
 
+  // 加载中状态
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 错误状态
+  if (error || !todoData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <p className="text-red-600 mb-4">{error || '数据加载失败'}</p>
+          <button
+            onClick={fetchTodoData}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            重新加载
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 为sections添加完成状态
+  const getSectionsWithCompleted = (sections: Section[]): Section[] => {
+    return sections.map(section => ({
+      ...section,
+      tasks: section.tasks.map(task => ({
+        ...task,
+        completed: completedTasks[task.id] || false
+      }))
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -281,7 +353,7 @@ export default function Home() {
               </div>
 
               <TodoTable
-                sections={todoData[activeTab]?.sections || []}
+                sections={getSectionsWithCompleted(todoData[activeTab]?.sections || [])}
                 tabId={activeTab}
                 onToggleTask={toggleTask}
                 getPriorityClass={getPriorityClass}
