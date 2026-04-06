@@ -1,21 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { todoData } from '@/data/todoData';
+import { todoData as initialTodoData } from '@/data/todoData';
+import TodoTable from '@/components/TodoTable';
 
 // 类型定义
 type Priority = 'high' | 'medium' | 'low';
 
-type Task = {
+export type Task = {
   id: string;
   title: string;
-  priority: Priority;
+  priority: string;
   content: string;
   tags: string[];
   completed: boolean;
 };
 
-type Section = {
+export type Section = {
   title: string;
   tasks: Task[];
 };
@@ -28,21 +29,49 @@ type TodoData = {
   [key: string]: TabData;
 };
 
+// 从localStorage加载数据
+const loadFromStorage = (): TodoData => {
+  if (typeof window === 'undefined') return initialTodoData;
+  
+  const saved = localStorage.getItem('todoData');
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return initialTodoData;
+    }
+  }
+  return initialTodoData;
+};
+
+// 保存数据到localStorage
+const saveToStorage = (data: TodoData) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('todoData', JSON.stringify(data));
+  }
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<string>('frontend');
+  const [todoData, setTodoData] = useState<TodoData>(initialTodoData);
   const [progress, setProgress] = useState<{ total: number; completed: number; percent: number }>({
     total: 0,
     completed: 0,
     percent: 0
   });
 
-  // 初始化和更新进度
-  const updateProgress = () => {
+  // 初始化：从localStorage加载数据
+  useEffect(() => {
+    const savedData = loadFromStorage();
+    setTodoData(savedData);
+  }, []);
+
+  // 更新进度
+  const updateProgress = (data: TodoData) => {
     let total = 0;
     let completed = 0;
 
-    // 遍历所有标签页的所有任务
-    Object.values(todoData).forEach((tab) => {
+    Object.values(data).forEach((tab) => {
       tab.sections.forEach((section) => {
         section.tasks.forEach((task) => {
           total++;
@@ -57,6 +86,11 @@ export default function Home() {
     setProgress({ total, completed, percent });
   };
 
+  // 当todoData变化时更新进度
+  useEffect(() => {
+    updateProgress(todoData);
+  }, [todoData]);
+
   // 切换标签页
   const switchTab = (tabId: string) => {
     setActiveTab(tabId);
@@ -64,26 +98,24 @@ export default function Home() {
 
   // 切换任务完成状态
   const toggleTask = (tabId: string, sectionIndex: number, taskIndex: number) => {
-    const updatedTodoData = JSON.parse(JSON.stringify(todoData)) as TodoData;
-    updatedTodoData[tabId].sections[sectionIndex].tasks[taskIndex].completed = !updatedTodoData[tabId].sections[sectionIndex].tasks[taskIndex].completed;
-    // 这里可以添加本地存储逻辑
-    updateProgress();
+    setTodoData((prevData) => {
+      const newData = JSON.parse(JSON.stringify(prevData)) as TodoData;
+      newData[tabId].sections[sectionIndex].tasks[taskIndex].completed = 
+        !newData[tabId].sections[sectionIndex].tasks[taskIndex].completed;
+      saveToStorage(newData);
+      return newData;
+    });
   };
-
-  // 初始化进度
-  useEffect(() => {
-    updateProgress();
-  }, []);
 
   // 获取优先级对应的样式类
   const getPriorityClass = (priority: string): string => {
     switch (priority) {
       case 'high':
-        return 'priority-high';
+        return 'text-red-600';
       case 'medium':
-        return 'priority-medium';
+        return 'text-yellow-600';
       case 'low':
-        return 'priority-low';
+        return 'text-green-600';
       default:
         return '';
     }
@@ -102,6 +134,92 @@ export default function Home() {
         return '';
     }
   };
+
+  // 获取标签对应的颜色
+  const getTagColor = (tag: string): string => {
+    const tagColors: { [key: string]: string } = {
+      '基础': 'bg-blue-100 text-blue-800',
+      '必学': 'bg-red-100 text-red-800',
+      '核心': 'bg-purple-100 text-purple-800',
+      '必备': 'bg-green-100 text-green-800',
+      '现代': 'bg-cyan-100 text-cyan-800',
+      '主流': 'bg-indigo-100 text-indigo-800',
+      '推荐': 'bg-teal-100 text-teal-800',
+      '框架': 'bg-orange-100 text-orange-800',
+      '重要': 'bg-yellow-100 text-yellow-800',
+      '新兴': 'bg-pink-100 text-pink-800',
+      '规范': 'bg-gray-100 text-gray-800',
+      '质量': 'bg-emerald-100 text-emerald-800',
+      '工程化': 'bg-slate-100 text-slate-800',
+      '进阶': 'bg-violet-100 text-violet-800',
+      '面试': 'bg-rose-100 text-rose-800',
+      '扩展': 'bg-amber-100 text-amber-800',
+      '高级': 'bg-fuchsia-100 text-fuchsia-800',
+      '合规': 'bg-lime-100 text-lime-800',
+      'JS全栈': 'bg-sky-100 text-sky-800',
+      'AI友好': 'bg-violet-100 text-violet-800',
+      '云原生': 'bg-cyan-100 text-cyan-800',
+      '热门': 'bg-orange-100 text-orange-800',
+      '企业级': 'bg-blue-100 text-blue-800',
+      '高性能': 'bg-red-100 text-red-800',
+      'NoSQL': 'bg-green-100 text-green-800',
+      '缓存': 'bg-yellow-100 text-yellow-800',
+      '搜索': 'bg-indigo-100 text-indigo-800',
+      '日志': 'bg-gray-100 text-gray-800',
+      '容器化': 'bg-blue-100 text-blue-800',
+      '编排': 'bg-purple-100 text-purple-800',
+      '运维': 'bg-teal-100 text-teal-800',
+      '监控': 'bg-orange-100 text-orange-800',
+      '实用': 'bg-green-100 text-green-800',
+      '前沿': 'bg-pink-100 text-pink-800',
+      'RAG': 'bg-cyan-100 text-cyan-800',
+      '本地': 'bg-gray-100 text-gray-800',
+      '开源': 'bg-blue-100 text-blue-800',
+      '效率': 'bg-green-100 text-green-800',
+      '伦理': 'bg-purple-100 text-purple-800',
+      'JS核心': 'bg-yellow-100 text-yellow-800',
+      '高频': 'bg-red-100 text-red-800',
+      '异步': 'bg-blue-100 text-blue-800',
+      '浏览器': 'bg-green-100 text-green-800',
+      '网络': 'bg-indigo-100 text-indigo-800',
+      '安全': 'bg-red-100 text-red-800',
+      'TS': 'bg-blue-100 text-blue-800',
+      '数据库': 'bg-green-100 text-green-800',
+      '分布式': 'bg-purple-100 text-purple-800',
+      '中间件': 'bg-orange-100 text-orange-800',
+      'Java': 'bg-red-100 text-red-800',
+      'LeetCode': 'bg-orange-100 text-orange-800',
+      '难点': 'bg-red-100 text-red-800',
+      '经典': 'bg-blue-100 text-blue-800',
+    };
+    return tagColors[tag] || 'bg-gray-100 text-gray-700';
+  };
+
+  // 标签页配置
+  const tabs = [
+    { id: 'frontend', label: '🌐 前端技术', title: '📖 前端技术学习路径', description: [
+      '从基础到高级，系统掌握现代前端开发技术栈',
+      '重点掌握 React/Vue 生态系统',
+      '学习工程化、性能优化、TypeScript 等核心技能'
+    ]},
+    { id: 'backend', label: '🔧 后端技术', title: '📖 后端技术学习路径', description: [
+      '掌握至少一门后端语言和框架',
+      '深入理解数据库、缓存、消息队列等中间件',
+      '学习系统设计、微服务、DevOps 等架构知识'
+    ]},
+    { id: 'ai', label: '🤖 AI技术', title: '📖 AI技术学习路径', description: [
+      '拥抱AI时代，掌握AI开发与应用技能',
+      '学习大语言模型、Prompt Engineering、AI应用开发',
+      '将AI技术融入全栈开发流程'
+    ]},
+    { id: 'interview', label: '📚 面试准备', title: '📖 面试准备指南', description: [
+      '系统梳理知识点，准备高频面试题',
+      '练习算法题，掌握数据结构与算法',
+      '准备项目经验，熟悉系统设计'
+    ]},
+  ];
+
+  const currentTab = tabs.find(tab => tab.id === activeTab);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 p-4 sm:p-6 md:p-8">
@@ -138,296 +256,39 @@ export default function Home() {
 
         {/* 标签页 */}
         <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10 shadow-sm">
-          <button
-            className={`flex-1 py-4 px-2 text-center font-semibold transition-all ${activeTab === 'frontend' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
-            onClick={() => switchTab('frontend')}
-          >
-            🌐 前端技术
-          </button>
-          <button
-            className={`flex-1 py-4 px-2 text-center font-semibold transition-all ${activeTab === 'backend' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
-            onClick={() => switchTab('backend')}
-          >
-            🔧 后端技术
-          </button>
-          <button
-            className={`flex-1 py-4 px-2 text-center font-semibold transition-all ${activeTab === 'ai' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
-            onClick={() => switchTab('ai')}
-          >
-            🤖 AI技术
-          </button>
-          <button
-            className={`flex-1 py-4 px-2 text-center font-semibold transition-all ${activeTab === 'interview' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
-            onClick={() => switchTab('interview')}
-          >
-            📚 面试准备
-          </button>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={`flex-1 py-4 px-2 text-center font-semibold transition-all ${activeTab === tab.id ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              onClick={() => switchTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* 内容区域 */}
         <div className="p-6">
-          {activeTab === 'frontend' && (
+          {currentTab && (
             <div>
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r mb-6 shadow-sm">
-                <h3 className="text-xl font-semibold text-blue-800 mb-2">📖 前端技术学习路径</h3>
+                <h3 className="text-xl font-semibold text-blue-800 mb-2">{currentTab.title}</h3>
                 <ul className="list-disc list-inside text-gray-700 space-y-1">
-                  <li>从基础到高级，系统掌握现代前端开发技术栈</li>
-                  <li>重点掌握 React/Vue 生态系统</li>
-                  <li>学习工程化、性能优化、TypeScript 等核心技能</li>
+                  {currentTab.description.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
                 </ul>
               </div>
 
-              {todoData.frontend.sections.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-8">
-                  <h2 className="bg-gray-100 px-4 py-3 border-l-4 border-indigo-600 text-xl font-bold text-gray-800 mb-4 shadow-sm">
-                    {section.title}
-                  </h2>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-                          <th className="px-4 py-3 text-left w-16">完成</th>
-                          <th className="px-4 py-3 text-left w-1/4">技能点</th>
-                          <th className="px-4 py-3 text-left w-16">优先级</th>
-                          <th className="px-4 py-3 text-left w-1/2">学习内容</th>
-                          <th className="px-4 py-3 text-left w-16">标签</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.tasks.map((task, taskIndex) => (
-                          <tr 
-                            key={task.id} 
-                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200"
-                            data-priority={task.priority}
-                          >
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => toggleTask('frontend', sectionIndex, taskIndex)}
-                                className="w-5 h-5 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                            </td>
-                            <td className="px-4 py-3 font-medium">{task.title}</td>
-                            <td className="px-4 py-3">
-                              <span className={`font-bold ${getPriorityClass(task.priority)}`}>
-                                {getPriorityText(task.priority)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-700">{task.content}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1">
-                                {task.tags.map((tag, tagIndex) => (
-                                  <span key={tagIndex} className="px-2 py-1 bg-gray-200 rounded-full text-xs text-gray-700">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'backend' && (
-            <div>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r mb-6 shadow-sm">
-                <h3 className="text-xl font-semibold text-blue-800 mb-2">📖 后端技术学习路径</h3>
-                <ul className="list-disc list-inside text-gray-700 space-y-1">
-                  <li>掌握至少一门后端语言和框架</li>
-                  <li>深入理解数据库、缓存、消息队列等中间件</li>
-                  <li>学习系统设计、微服务、DevOps 等架构知识</li>
-                </ul>
-              </div>
-
-              {todoData.backend.sections.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-8">
-                  <h2 className="bg-gray-100 px-4 py-3 border-l-4 border-indigo-600 text-xl font-bold text-gray-800 mb-4 shadow-sm">
-                    {section.title}
-                  </h2>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-                          <th className="px-4 py-3 text-left w-16">完成</th>
-                          <th className="px-4 py-3 text-left w-1/4">技能点</th>
-                          <th className="px-4 py-3 text-left w-16">优先级</th>
-                          <th className="px-4 py-3 text-left w-1/2">学习内容</th>
-                          <th className="px-4 py-3 text-left w-16">标签</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.tasks.map((task, taskIndex) => (
-                          <tr 
-                            key={task.id} 
-                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200"
-                            data-priority={task.priority}
-                          >
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => toggleTask('backend', sectionIndex, taskIndex)}
-                                className="w-5 h-5 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                            </td>
-                            <td className="px-4 py-3 font-medium">{task.title}</td>
-                            <td className="px-4 py-3">
-                              <span className={`font-bold ${getPriorityClass(task.priority)}`}>
-                                {getPriorityText(task.priority)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-700">{task.content}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1">
-                                {task.tags.map((tag, tagIndex) => (
-                                  <span key={tagIndex} className="px-2 py-1 bg-gray-200 rounded-full text-xs text-gray-700">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'ai' && (
-            <div>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r mb-6 shadow-sm">
-                <h3 className="text-xl font-semibold text-blue-800 mb-2">📖 AI技术学习路径</h3>
-                <ul className="list-disc list-inside text-gray-700 space-y-1">
-                  <li>拥抱AI时代，掌握AI开发与应用技能</li>
-                  <li>学习大语言模型、Prompt Engineering、AI应用开发</li>
-                  <li>将AI技术融入全栈开发流程</li>
-                </ul>
-              </div>
-
-              {todoData.ai.sections.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-8">
-                  <h2 className="bg-gray-100 px-4 py-3 border-l-4 border-indigo-600 text-xl font-bold text-gray-800 mb-4 shadow-sm">
-                    {section.title}
-                  </h2>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-                          <th className="px-4 py-3 text-left w-16">完成</th>
-                          <th className="px-4 py-3 text-left w-1/4">技能点</th>
-                          <th className="px-4 py-3 text-left w-16">优先级</th>
-                          <th className="px-4 py-3 text-left w-1/2">学习内容</th>
-                          <th className="px-4 py-3 text-left w-16">标签</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.tasks.map((task, taskIndex) => (
-                          <tr 
-                            key={task.id} 
-                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200"
-                            data-priority={task.priority}
-                          >
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => toggleTask('ai', sectionIndex, taskIndex)}
-                                className="w-5 h-5 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                            </td>
-                            <td className="px-4 py-3 font-medium">{task.title}</td>
-                            <td className="px-4 py-3">
-                              <span className={`font-bold ${getPriorityClass(task.priority)}`}>
-                                {getPriorityText(task.priority)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-700">{task.content}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1">
-                                {task.tags.map((tag, tagIndex) => (
-                                  <span key={tagIndex} className="px-2 py-1 bg-gray-200 rounded-full text-xs text-gray-700">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'interview' && (
-            <div>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r mb-6 shadow-sm">
-                <h3 className="text-xl font-semibold text-blue-800 mb-2">📖 面试准备指南</h3>
-                <ul className="list-disc list-inside text-gray-700 space-y-1">
-                  <li>系统梳理知识点，准备高频面试题</li>
-                  <li>练习算法题，掌握数据结构与算法</li>
-                  <li>准备项目经验，熟悉系统设计</li>
-                </ul>
-              </div>
-
-              {todoData.interview.sections.map((section, sectionIndex) => (
-                <div key={sectionIndex} className="mb-8">
-                  <h2 className="bg-gray-100 px-4 py-3 border-l-4 border-indigo-600 text-xl font-bold text-gray-800 mb-4 shadow-sm">
-                    {section.title}
-                  </h2>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-                          <th className="px-4 py-3 text-left w-16">完成</th>
-                          <th className="px-4 py-3 text-left w-1/4">面试题</th>
-                          <th className="px-4 py-3 text-left w-1/2">考察要点</th>
-                          <th className="px-4 py-3 text-left w-16">标签</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.tasks.map((task, taskIndex) => (
-                          <tr 
-                            key={task.id} 
-                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200"
-                          >
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => toggleTask('interview', sectionIndex, taskIndex)}
-                                className="w-5 h-5 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                            </td>
-                            <td className="px-4 py-3 font-medium">{task.title}</td>
-                            <td className="px-4 py-3 text-gray-700">{task.content}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1">
-                                {task.tags.map((tag, tagIndex) => (
-                                  <span key={tagIndex} className="px-2 py-1 bg-gray-200 rounded-full text-xs text-gray-700">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
+              <TodoTable
+                sections={todoData[activeTab]?.sections || []}
+                tabId={activeTab}
+                onToggleTask={toggleTask}
+                getPriorityClass={getPriorityClass}
+                getPriorityText={getPriorityText}
+                getTagColor={getTagColor}
+                showPriority={activeTab !== 'interview'}
+              />
             </div>
           )}
         </div>
