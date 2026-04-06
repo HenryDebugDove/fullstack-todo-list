@@ -38,11 +38,11 @@ jobs:
           REMOTE_PORT: ${{ secrets.SERVER_PORT || '22' }}
           REMOTE_USER: ${{ secrets.SERVER_USER }}
           TARGET: ${{ secrets.SERVER_PATH }}
-          SOURCE: '.next/'
-          EXCLUDE: 'node_modules/, .git/, .github/'
+          SOURCE: './'
+          EXCLUDE: 'node_modules/, .git/, .github/, .next/'
 
-      # 6. 重启服务（如果需要）
-      - name: Restart service
+      # 6. 安装依赖并重启服务
+      - name: Install dependencies and restart service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -51,5 +51,9 @@ jobs:
           key: ${{ secrets.SERVER_KEY }}
           script: |
             cd ${{ secrets.SERVER_PATH }}
-            # 这里根据你的服务器配置添加重启命令
-            # 例如：pm2 restart next-app || npm run start
+            # 安装依赖
+            npm install
+            # 构建项目
+            npm run build
+            # 重启服务
+            pm2 restart fullstack-todo-list || pm2 start "npm run dev" --name "fullstack-todo-list"
