@@ -29,7 +29,7 @@ jobs:
       - name: Build project
         run: npm run build
 
-      # 5. 部署到腾讯云服务器
+      # 5. 部署到腾讯云服务器（传统部署）
       - name: Deploy to Tencent Cloud Server
         uses: easingthemes/ssh-deploy@v4.1.0
         with:
@@ -41,7 +41,7 @@ jobs:
           SOURCE: './'
           EXCLUDE: 'node_modules/, .git/, .github/, .next/'
 
-      # 6. 安装依赖并重启服务
+      # 6. 安装依赖并重启服务（传统部署）
       - name: Install dependencies and restart service
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -57,3 +57,69 @@ jobs:
             npm run build
             # 重启服务（使用生产模式）
             pm2 restart fullstack-todo-list || pm2 start "npm run start" --name "fullstack-todo-list"
+
+  docker-deploy:
+    runs-on: ubuntu-latest
+    needs: deploy
+    
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 设置 Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # 3. 登录 Docker Hub（如果需要）
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v2
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 4. 构建 Docker 镜像
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          tags: fullstack-todo-list:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 5. 保存 Docker 镜像
+      - name: Save Docker image
+        run: |
+          docker save -o fullstack-todo-list.tar fullstack-todo-list:latest
+
+      # 6. 部署 Docker 镜像到服务器
+      - name: Deploy Docker image to server
+        uses: easingthemes/ssh-deploy@v4.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_KEY }}
+          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
+          REMOTE_PORT: ${{ secrets.SERVER_PORT || '22' }}
+          REMOTE_USER: ${{ secrets.SERVER_USER }}
+          TARGET: ${{ secrets.SERVER_PATH }}
+          SOURCE: 'fullstack-todo-list.tar'
+
+      # 7. 在服务器上运行 Docker 容器
+      - name: Run Docker container on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT || '22' }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_KEY }}
+          script: |
+            cd ${{ secrets.SERVER_PATH }}
+            # 加载 Docker 镜像
+            docker load -i fullstack-todo-list.tar
+            # 停止并移除旧容器
+            docker stop fullstack-todo-list || true
+            docker rm fullstack-todo-list || true
+            # 运行新容器
+            docker run -d -p 3000:3000 --name fullstack-todo-list fullstack-todo-list:latest
+            # 清理临时文件
+            rm fullstack-todo-list.tar
